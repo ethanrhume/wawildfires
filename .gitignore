@@ -47,3 +47,13 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# new script template
+new_script_template.R
+R/
+
+# MarketScan docs
+marketscan_data_dictionary.pdf
+
+# Ignore all raw and processed data
+data/
