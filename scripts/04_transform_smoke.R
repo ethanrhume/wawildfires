@@ -133,10 +133,8 @@ wa_smokedays <- wa_smokedays |>
       .x = arithmetic_mean,
       .i = year,
       .f = ~median(.x, na.rm = TRUE),
-      # .before = 5 means look back 5 units (years)
-      # .after = -1 means exclude the current year
-      .before = 5,
-      .after = -1
+      .before = 5, # look back 5 years
+      .after = -1 # exclude the current year
     )
   ) |>
   ungroup()
@@ -150,6 +148,7 @@ wa_smokedays <- wa_smokedays |>
       TRUE ~ FALSE
     )
   )
+
 #### Construct ZCTA-wise smoke day variable ####
 # add population by year to zcta_nearest_monitors
 zcta_nearest_monitors <- zcta_pops |>
@@ -248,6 +247,9 @@ write_rds(zcta_smokedays_constructed, here("data", "zcta_smokedays_constructed.r
 
 #### UNDER CONSTRUCTION: MSA SMOKE DAYS USE OUTDATED DEFINITION CURRENTLY ####
 
+#' the following code adds the necessary components for a population weighted
+#' average of monitors per MSA 
+
 msa_smokeday_comps <- data.frame(zcta = zcta_nearest_monitors$zcta,
                                  msa = zcta_nearest_monitors$msa,
                                  pop_2011 = zcta_nearest_monitors$pop_2011,
@@ -336,12 +338,38 @@ msa_smokedays_constructed <- msa_smokeday_comps |>
   ungroup() |>
   arrange(msa, year, month)
 
+# now calculate 5 year rolling median for that month
+msa_smokedays_constructed <- msa_smokedays_constructed |>
+  # Ensure data is sorted so the rolling window looks at the correct years
+  arrange(msa, month, year) |>
+  group_by(msa, month) |>
+  mutate(
+    monthly_med = slide_index_dbl(
+      .x = msa_con,
+      .i = year,
+      .f = ~median(.x, na.rm = TRUE),
+      .before = 5, # look back five years
+      .after = -1 # exclude this year
+    )
+  ) |>
+  ungroup()
+
+# incorporate a binary active fire indicator to msa_smokedays_constructed
+msa_smokedays_constructed <- msa_smokedays_constructed |>
+  mutate(
+    date = as.Date(paste(year, month_date, sep = "-")),
+    active_fire = case_when(
+      date %in% fires_active ~ 1,
+      TRUE ~ 0
+    )
+  )
+
 # now add the actual smokeday determination
 msa_smokedays_constructed <- msa_smokedays_constructed |>
   mutate(
     smoke = case_when(
-      msa_con > 20.4 ~ TRUE,
-      msa_con > (monthly_mean + monthly_sd) & msa_con > 9 ~ TRUE,
+      msa_con > 20 ~ TRUE,
+      msa_con > monthly_med + 10 & active_fire == 1 ~ TRUE,
       TRUE ~ FALSE
     )
   )
