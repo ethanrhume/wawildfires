@@ -1,7 +1,34 @@
-#### Setup ####
+# =============================================================================
+# Script:  04_transform_smoke.R
+# Author:  Ethan Hume
+# Date:    2026-06-10
+# Inputs:  1. Cleaned WA daily monitor observations
+#             (data/wa_monitors_clean.rds) from 03_clean_smoke.R.
+#          2. ZCTA-to-nearest-monitor assignments
+#             (data/monitor_assignments/zcta_nearest_monitors.csv).
+#          3. Annual ZCTA population estimates 2011-2020
+#             (data/census_pops/).
+#          4. ZCTA-to-MSA overlap crosswalk
+#             (data/monitor_assignments/zcta_msa_overlap.csv).
+#          5. FIRMS MODIS fire point data for the US and Canada
+#             (data/fire_data/).
+# Purpose: Constructs monitor-wise and ZCTA-wise binary smoke day indicators
+#          using a two-criterion rule (PM2.5 > 20 ug/m3 OR PM2.5 > 5-year
+#          rolling monthly median + 10 with active fire within 50 mi of WA).
+#          Also constructs population-weighted MSA-level smoke day indicators
+#          using the same rule applied to MSA-aggregated PM2.5.
+# Outputs: 1. Finalized ZCTA-monitor-MSA crosswalk
+#             (data/zcta_msa_monitor_clean.rds).
+#          2. ZCTA-day smoke day dataframe 2011-2020
+#             (data/zcta_smokedays_constructed.rds).
+#          3. MSA-day smoke day dataframe 2011-2020
+#             (data/msa_smokedays_constructed.rds).
+# =============================================================================
+
+# ---- Setup ----
 rm(list = ls())
 if (!requireNamespace("pacman", quietly = TRUE)) install.packages("pacman")
-pacman::p_load(here, 
+pacman::p_load(here,
                tidyverse,
                lubridate,
                sf,
@@ -15,7 +42,7 @@ pacman::p_load(here,
 here::i_am("scripts/04_transform_smoke.R") #Ensures `here` properly IDs top-level directory
 
 
-#### Load in data ####
+# ---- Load in data ----
 wa_smokedays <- readRDS(here("data", "wa_monitors_clean.rds"))
 
 zcta_nearest_monitors <- read_csv(here("data", "monitor_assignments", 
@@ -39,7 +66,7 @@ zcta_pops <- list(zcta_pops_2011, zcta_pops_2012, zcta_pops_2013, zcta_pops_2014
 zcta_msa_overlap <- read_csv(here("data", "monitor_assignments", 
                                   "zcta_msa_overlap.csv"))
 
-#### Add active_fire variable ####
+# ---- Add active_fire variable ----
 # load fires (point data from FIRMS MODIS)
 us_fires <- read_csv(here("data", "fire_data", "us_fires.csv"))
 can_fires <- read_csv(here("data", "fire_data", "can_fires.csv"))
@@ -82,7 +109,7 @@ wa_smokedays <- wa_smokedays |>
     )
   )
 
-#### Construct monitor-wise smoke days variable ####
+# ---- Construct monitor-wise smoke days variable ----
 #' Constructed smoke days will be defined as any day with active fire w/i 50 mi 
 #' of WA state AND with EITHER daily average PM2.5 > 20 ug/ml OR daily average 
 #' PM2.5 > 5-year rolling median of daily avg PM2.5 for that month
@@ -149,7 +176,7 @@ wa_smokedays <- wa_smokedays |>
     )
   )
 
-#### Construct ZCTA-wise smoke day variable ####
+# ---- Construct ZCTA-wise smoke day variable ----
 # add population by year to zcta_nearest_monitors
 zcta_nearest_monitors <- zcta_pops |>
   reduce(left_join, by = "zcta", .init = zcta_nearest_monitors)
@@ -245,7 +272,7 @@ write_rds(zcta_smokedays_constructed, here("data", "zcta_smokedays_constructed.r
 
 
 
-#### UNDER CONSTRUCTION: MSA SMOKE DAYS USE OUTDATED DEFINITION CURRENTLY ####
+# ---- MSA smoke days ----
 
 #' the following code adds the necessary components for a population weighted
 #' average of monitors per MSA 

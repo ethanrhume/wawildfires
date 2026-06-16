@@ -1,7 +1,24 @@
-#### Setup ####
+# =============================================================================
+# Script:  03_clean_smoke.R
+# Author:  Ethan Hume
+# Date:    2026-06-10
+# Inputs:  1. Annual EPA AQS PM2.5 (parameter 88502) CSV files
+#             (data/daily_88502_pm/).
+#          2. AQS monitor metadata CSV (data/monitor_assignments/aqs_monitors.csv).
+# Purpose: Loads raw EPA AQS daily PM2.5 monitor data for Washington State,
+#          filters to monitors active in 2020, resolves duplicate POC
+#          instruments, assigns sequential site IDs, and exports a cleaned
+#          monitor CSV for use in GIS-based ZCTA/MSA assignment.
+# Outputs: 1. Cleaned monitor metadata CSV
+#             (data/monitor_assignments/monitors_clean.csv).
+#          2. RDS of cleaned WA daily monitor observations 2010-2020
+#             (data/wa_monitors_clean.rds).
+# =============================================================================
+
+# ---- Setup ----
 rm(list = ls())
 if (!requireNamespace("pacman", quietly = TRUE)) install.packages("pacman")
-pacman::p_load(here, 
+pacman::p_load(here,
                tidyverse,
                lubridate,
                sf,
@@ -11,7 +28,7 @@ pacman::p_load(here,
 
 here::i_am("scripts/03_clean_smoke.R") #Ensures `here` properly IDs top-level directory
 
-#### Load in monitor data ####
+# ---- Load in monitor data ----
 # create vector of filepaths based on naming convention
 raw_monitor_data <- list.files(path = here("data", "daily_88502_pm"), 
                                pattern = "us_20[12][0-9]\\.csv", 
@@ -23,7 +40,7 @@ names(raw_monitor_data) <- basename(raw_monitor_data) |> str_remove("\\.csv")
 # create list with each df named as above
 data_list <- map(raw_monitor_data, read_csv)
 
-#### Clean monitor data ####
+# ---- Clean monitor data ----
 # list-wise, filter to WA for monitors that exist in 2020
 
 # define the longitudes of the extant monitors in 2020
@@ -89,7 +106,7 @@ wa_monitors <- wa_monitors |>
   mutate(site_num = new_site_num) |>
   select(-new_site_num)
 
-#### clean aqs monitors ####
+# ---- Clean AQS monitors ----
 aqs_monitors <- read_csv(here("data", "monitor_assignments", "aqs_monitors.csv"))
 aqs_monitors <- aqs_monitors |>
   clean_names() |>
@@ -117,6 +134,6 @@ aqs_monitors <- aqs_monitors |>
 write_csv(aqs_monitors, file = here("data", "monitor_assignments", 
                                     "monitors_clean.csv"))
 
-#### Save clean WA monitor data 2010 - 2020 ####
+# ---- Save clean WA monitor data 2010-2020 ----
 # write cleaned df to new file
 saveRDS(wa_monitors, file = here("data", "wa_monitors_clean.rds"))

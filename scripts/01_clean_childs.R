@@ -1,6 +1,21 @@
-#### Setup ####
+# =============================================================================
+# Script:  01_clean_childs.R
+# Author:  Ethan Hume
+# Date:    2026-06-10
+# Inputs:  1. Daily ZCTA-level PM2.5 predictions on smoke days from Childs 
+#             et al. (2022).
+#          2. A ZCTA shapefile.
+# Purpose: Joins Childs' smoke day predictions  to the full set of ZCTA-days 
+#          (2006–2020), retaining NAs for non-smoke days rather than imputing 
+#          zero. 
+# Outputs: 1. A single RDS file (data/us_smokedays.rds) used by
+#          downstream scripts.
+# =============================================================================
+
+# ---- Setup ----
 rm(list = ls())
 if (!requireNamespace("pacman", quietly = TRUE)) install.packages("pacman")
+
 pacman::p_load(here, 
                tidyverse,
                lubridate,
@@ -8,7 +23,7 @@ pacman::p_load(here,
 
 here::i_am("scripts/01_clean_childs.R") #Ensures `here` properly IDs top-level directory
 
-#### Load Marissa Childs et al 2025 data ####
+# ---- Load Childs et al. (2022) data ----
 #' Load smokePM predictions on smoke days
 #' This is ZCTA5 level smoke days and associated predictions from 
 #' January 1, 2006 to December 31, 2020 in the entire contiguous US. Non-smoke
@@ -23,7 +38,7 @@ zctas = read_sf("./data/zcta/tl_2019_us_zcta510")
 # Load full set of dates
 dates = seq.Date(ymd("20060101"), ymd("20201231"), by = "day")
 
-#### Combine dfs together, save ####
+# ---- Combine dfs together, save ----
 # Get full combination of ZCTA-days
 # Warning: this may require a large amount of memory
 out = expand.grid(GEOID10 = zctas$GEOID10, date = dates)
@@ -33,8 +48,3 @@ out = left_join(out, preds, by = c("GEOID10", "date"))
 
 # Write to a file that can be stored and loaded later
 saveRDS(out, file = here("data", "us_smokedays.rds"))
-
-# Predict 0 for remaining ZCTA-days, which are non-smoke days
-# Have commented out this line from Childs et al to prevent non-smoke days from 
-# being assinged 0 and getting confused with smoke days of prediction = 0
-# out = mutate(out, smokePM_pred = replace_na(smokePM_pred, 0))
